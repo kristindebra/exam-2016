@@ -1,0 +1,240 @@
+---
+title: "Stats Exam"
+author: "K Nel"
+date: "31 August 2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+##Kristin Nel
+
+#Question 1
+
+*Null Hypothesis:* There is no association between sex (independent), and one's body temperature and heart rate (both dependent).
+
+*Alternative Hypothesis:* There is an association between sex (independent), and one's body temperature and heart rate (both dependent).
+
+There are 2 groups of unpaired data (male and female), and the data is numerical and continuous. The mean and median are almost identical for both variables (temp + HR), so I can conclude the data is parametric. Therefore, I will perform a Student's or unpaired t-test. 
+
+*The assumptions for this test are as follows:*
+The distribution for the data in the population is Gaussian; there is equal variance across groups; the errors are independent; and the data are unmatched.
+```{r chunk1, echo=FALSE}
+#Load packages
+library(readr)
+library(dplyr)
+library(tidyr)
+
+#Read directly from URL
+data_q1 <- read.csv('https://dl.dropboxusercontent.com/u/11805474/painblogr/biostats/exam-data-2016/question1.csv')
+
+#Load data into a data frame table
+table_q1 <- tbl_df(data_q1)
+
+#Clean Data
+##Gather Male and Female Columns into a Sex Column
+gather_sex <- gather(table_q1, key = Sex, value = heart_rate, male, female)
+
+##Filter out data with NA
+no_na <- filter(gather_sex, !is.na(heart_rate))
+
+##Order table columns in more logical order
+tidy_q1 <- select(no_na, Sex, body_temperature, heart_rate)
+print(tidy_q1)
+
+#Quicklook at data
+boxplot(body_temperature~Sex, data = tidy_q1)
+#At a quick glance, females have a higher average body temp than males, however males have a larger variation around the mean.
+boxplot(heart_rate~Sex, data = tidy_q1)
+#At a quick glance, females have a higher average heart rate than males, and they have a larger variation around the mean.
+
+#Perform t-test on body temperature data
+t.test(body_temperature~Sex, data=tidy_q1, paired=FALSE)
+#Perform t-test on heart rate data
+t.test(heart_rate~Sex, data=tidy_q1, paired=FALSE)
+
+#Produce summary of tidy_q1 data
+summary(tidy_q1)
+
+#Perform post-hoc test if you have groups (which didnt work for me - was in a hurry)
+#pairwise.t.test(body_temperature$tidy_q1, Sex$tidy_q1, p.adjust.method='holm',paired=FALSE)
+```
+*Results for the association between gender and body temperature:*
+t = 2.3204, df = 127.52, p-value = 0.02191
+Confidence interval = 95% (0.024 to 0.302)
+
+The difference between the two means is significant because the t-value is greather than that in a lookup table, with degrees of freedom being about 128 and p value = 0.05.
+Therefore we reject the null hypothesis and accept the alternative hypothesis.
+
+*Results for the association between gender and heart rate:*
+t = 0.6319, df = 116.7, p-value = 0.5287
+Confidence interval = 95% (-1.6745 to 3.2437)
+
+The difference between the two means is not significant because the t-value is greather than that in a lookup table, with degrees of freedom being about 117 and p value = 0.05.
+Therefore we accept the null hypothesis.
+
+*Interpretation of results:*
+There is an association between gender and body temperature, however there is no significant association between gender and heart rate.
+
+
+#Question 2
+
+*Null Hypothesis:* There is no association between handedness and ataxic walking in intoxicated individuals.
+
+*Alternative Hypothesis:* There is  an association between handedness and ataxic walking in intoxicated individuals.
+
+There are 2 groups of unpaired data (right and left handedness), and the data is categorical and nominal. 
+
+The mean and median are not similar for both variables ("first stumble" and "final position"), so I can conclude the data is non-parametric. Therefore, I will perform a Fishers-Exact. The assumptions for this test are as follows:
+1) the sampling was done randomly
+2) the observations are independent
+3) there is a large sample with adequate expected cell counts
+  for a 2 x 2 table: Expected >= 5 in all cells
+4) it assumes the discrete probability of observed frequencies in the table can be approxiamtaed by the continuous chi-squared value  
+```{r chunk2, echo=TRUE}
+#Read directly from URL
+data_q2 <- read.csv('https://dl.dropboxusercontent.com/u/11805474/painblogr/biostats/exam-data-2016/question2.csv')
+
+#Load data into a data frame table
+table_q2 <- tbl_df(data_q2)
+
+#Tidy the data
+##Add a coloumn for change in direction
+mutate_q2 <- mutate(table_q2, 'change' = first_stumble + final_position)
+
+##Select columns being used for simplicity
+final_q2 <- select(mutate_q2, handedness, change)
+
+##Add column for presence of ataxia 
+#ataxia_q2 <- mutate(final_q2, if(change==1){ataxia='present'}, if(change==0 | change=2){ataxia='absent'})
+
+#The above ataxia_variable creation did not work with the mutate function, and so I manually analysed the data and created my own dataset in a text document
+#Import text dataset
+import_q2 <- read.table('question2ataxia.txt',
+                 header = TRUE)
+
+summary(import_q2)
+
+#Quicklook at data
+#Cross tabulate data into a contingency table, where a change in direction = 1, while no change in direction = 0; right-handedness = 1 and left-handedness = 0
+xtab_q2 <- xtabs(~Handedness+Change, data=import_q2)
+
+#Performs Fisher's test
+fisher.test(xtab_q2) 
+
+```
+*Results for Fisher's Exact:*
+Odds ratio = 1.08
+p-value = 0.8675 and this is not a statistically significant value.
+n = 151
+Confidence interval: 95% (0.531 to 2.200)
+Therefore we accept the null hypothesis.
+
+*Interpretation of results:*
+There is no association between handedness and ataxic walking in intoxicated individuals.
+
+
+#Question 3
+
+*Null Hypothesis:* There is no association between running time and calories consumed during the run.
+
+*Alternative Hypothesis:* There is an association between running time and calories consumed during the run.
+
+The data being analysed is numerical and continous. The data is normally distributed and homoskedastic (as calculated below).
+A linear regression will be performed (the data looks fairly linear, hence we can assume there is a correlation).
+The assumptions for this test are as follows:
+1) A linear trend exists between running time (x) and calories consumed (y)
+2) The observations in the sample are independent
+3) Running time (x) is measured without error
+4)The residuals are normally distributed, and they have the same variance for all fitted values of calories consumed (y)
+```{r chunk3, echo=TRUE}
+#Load packages
+library(readr)
+library(dplyr)
+library(tidyr)
+
+#Read directly from URL
+data_q3 <- read.csv('https://dl.dropboxusercontent.com/u/11805474/painblogr/biostats/exam-data-2016/question3.csv')
+
+#Load data into a data frame table
+table_q3 <- tbl_df(data_q3)
+#Print table from above
+table_q3
+
+#Plot the data
+plot(x = table_q3$time, y = table_q3$calories)
+
+#Pearson's correlation
+pearson<- cor.test(table_q3$time, table_q3$calories, method='pearson')
+#Regression analysis
+model_q3 <- lm(calories~time, data=table_q3)
+summary(model_q3)
+
+#Perform diagnostics 
+##Use QQ-plot to find normality of residuals
+qqnorm(model_q3$residuals)
+qqline(model_q3$residuals)
+
+##Determine if data is homoskedastic using a fitted vs. residual plot and add abline to visualise the spread
+plot(y = model_q3$residuals, x = model_q3$fitted)
+abline(h=0)
+abline()
+
+###The data is normal (however not very pretty on the graph)
+###The data is homoskedastic as the data points are more or less spread evenly on either side
+```
+*Results from regression analysis:*
+R-squared = 30.17
+F-statistic = 14.22; df = 17; p-value = 0.002 (rounded to 3dp)
+
+*Interpretation of results:*
+Therefore, the p-value of the overall F-test is significant, and the regression model predicts the response variable better than the mean of the response.
+
+#Question 4
+
+```{r chunk4, echo=TRUE}
+#Load packages
+library(readr)
+library(dplyr)
+library(tidyr)
+
+#Load fake dataset
+foo <- rnorm(10000, mean = 60, sd = 3) # final mark
+bar <- rnorm(10000, mean = 68, sd = 5) # project mark
+baz <- rep(seq(from = 1997, to = 2006), each = 1) # years
+
+year <- sample(baz, 150, replace = TRUE,
+               prob = c(0.05, 0.05, 0.08, 0.08, 
+                          0.1, 0.13, 0.14, 0.13, 0.12, 0.12))
+project_mark <- sample(bar, 150, replace = TRUE)
+final_mark <- sample(foo, 150, replace = TRUE)
+
+plot_data <- data_frame(year = year,
+                        project_mark = round(project_mark, 1),
+                        final_mark = round(final_mark, 1)) %>%
+    arrange(year)
+
+
+#Load data into a data frame table
+table_q4 <- tbl_df(plot_data)
+
+#Open new file device to save plot in
+pdf(file='marks.pdf')
+
+#Plot black and white, publishable figure
+plot(x = project_mark, y=final_mark, 
+     xlab= "Project Mark (%)", 
+     ylab="Final Mark (%)", 
+     xlim=c(50,85), 
+     ylim=c(50,75), 
+     main= "The relationship between project mark and final mark", 
+     cex.main=1.5,
+     cex=0.8,
+     pch=16)
+
+#Save and close the image
+dev.off('marks.pdf')
+
+```
